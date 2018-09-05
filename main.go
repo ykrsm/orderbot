@@ -50,8 +50,7 @@ func _main(args []string) int {
 	// Register handler to receive interactive message
 	// responses from slack (kicked by user action)
 	http.Handle("/interaction", interactionHandler{
-		// verificationToken: os.Getenv("VARIFICATION_TOKEN"),
-		verificationToken: "JxCpnDjGI9QjRVNdHZnlRe9V",
+		verificationToken: os.Getenv("VERIFICATION_TOKEN"),
 	})
 
 	// log.Printf("[INFO] Server listening on :%s", env.Port)
