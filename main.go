@@ -9,24 +9,6 @@ import (
 	"github.com/nlopes/slack"
 )
 
-type envConfig struct {
-	// Port is server port to be listened.
-	Port string `envconfig:"PORT" default:"3000"`
-
-	// BotToken is bot user token to access to slack API.
-	BotToken string `envconfig:"BOT_TOKEN" required:"true"`
-
-	// VerificationToken is used to validate interactive messages from slack.
-	VerificationToken string `envconfig:"VERIFICATION_TOKEN" required:"true"`
-
-	// BotID is bot user ID.
-	BotID string `envconfig:"BOT_ID" required:"true"`
-
-	// ChannelID is slack channel ID where bot is working.
-	// Bot responses to the mention in this channel.
-	ChannelID string `envconfig:"CHANNEL_ID" required:"true"`
-}
-
 func main() {
 	os.Exit(_main(os.Args[1:]))
 }
@@ -53,7 +35,6 @@ func _main(args []string) int {
 		verificationToken: os.Getenv("VERIFICATION_TOKEN"),
 	})
 
-	// log.Printf("[INFO] Server listening on :%s", env.Port)
 	const port = "3000"
 	log.Printf("[INFO] Server listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
