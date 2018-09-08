@@ -12,6 +12,7 @@ const (
 	// action is used for slack attament action.
 	actionSelect = "select"
 	actionStart  = "start"
+	actionDialog = "dialog"
 	actionCancel = "cancel"
 )
 

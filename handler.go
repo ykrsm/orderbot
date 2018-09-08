@@ -72,6 +72,12 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					Style: "primary",
 				},
 				{
+					Name:  actionDialog,
+					Text:  "Open Dialog",
+					Type:  "button",
+					Style: "warning",
+				},
+				{
 					Name:  actionCancel,
 					Text:  "No",
 					Type:  "button",
@@ -96,12 +102,39 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case actionCancel:
 		title := fmt.Sprintf(":x: @%s canceled the request", message.User.Name)
+		log.Printf("trigger_id: %s", message.TriggerID)
 		responseMessage(w, message.OriginalMessage, title, "")
+		return
+	case actionDialog:
+		title := fmt.Sprintf(":x: @%s dialog is opening", message.User.Name)
+		h.responseDialog(w, message.OriginalMessage, title, "", message.TriggerID)
 		return
 	default:
 		log.Printf("[ERROR] ]Invalid action was submitted: %s", action.Name)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+}
+
+func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack.Message, title, value string, triggerID string) {
+
+	log.Printf("trigger_id: %s", triggerID)
+	dialog := slack.Dialog{
+		CallbackId:     "dialog_callback_id",
+		Title:          "dialog test",
+		NotifyOnCancel: true,
+		Elements: []slack.DialogElement{
+			slack.DialogTextElement{
+				Label: "hello",
+				Name:  "test name",
+				Type:  "text",
+			},
+		},
+	}
+
+	if err := h.slackClient.OpenDialog(triggerID, dialog); err != nil {
+		fmt.Printf("test %+v", err)
+		log.Printf("[ERROR]: %s", err)
 	}
 }
 
