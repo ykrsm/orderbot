@@ -154,27 +154,6 @@ func (h interactionHandler) receiveDialog(
 
 	fmt.Printf("d: %+v", dialog)
 
-	/*
-		attachment := slack.Attachment{
-			Text:       fmt.Sprintf(":x: @%s dialog is opening", dialog.Submission["test"]),
-			Color:      "#f9a41b",
-			CallbackID: "echo",
-			Actions: []slack.AttachmentAction{
-				{
-					Name:  actionCancel,
-					Text:  "Correct?",
-					Type:  "button",
-					Style: "danger",
-				},
-			},
-		}
-
-		params := slack.PostMessageParameters{
-			Attachments: []slack.Attachment{
-				attachment,
-			},
-		}
-	*/
 	params := slack.PostMessageParameters{}
 
 	if _, err := h.postEphemeral(
@@ -205,9 +184,27 @@ func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack
 		NotifyOnCancel: true,
 		Elements: []slack.DialogElement{
 			slack.DialogTextElement{
-				Label: "hello",
-				Name:  "test",
-				Type:  "text",
+				Label:       "Item name",
+				Name:        "item_name",
+				Type:        "text",
+				Placeholder: "e.g. Keyboard",
+				Hint:        "Type the name of item you are ordering",
+			},
+			slack.DialogTextElement{
+				Label:       "URL",
+				Name:        "url",
+				Type:        "text",
+				Subtype:     "url",
+				Placeholder: "e.g. http://a.co/d/...",
+				Hint:        "Type URL of item you are ordering",
+			},
+			slack.DialogTextElement{
+				Label:       "How many?",
+				Name:        "item_count",
+				Type:        "text",
+				Subtype:     "number",
+				Placeholder: "e.g. 1",
+				Hint:        "How many do you want?",
 			},
 		},
 	}
