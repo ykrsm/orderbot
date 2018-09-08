@@ -10,10 +10,11 @@ import (
 
 const (
 	// action is used for slack attament action.
-	actionSelect = "select"
-	actionStart  = "start"
-	actionDialog = "dialog"
-	actionCancel = "cancel"
+	actionSelect         = "select"
+	actionStart          = "start"
+	actionDialog         = "dialog"
+	actionDialogCallback = "dialogCB"
+	actionCancel         = "cancel"
 )
 
 // SlackListener is

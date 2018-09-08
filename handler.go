@@ -45,6 +45,23 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// fmt.Printf("JSON: %+v", jsonStr)
+
+	//TODO better handling
+	if message.Actions == nil {
+		fmt.Printf("Actions not found")
+
+		var dialogRes slack.DialogCallback
+		if err := json.Unmarshal([]byte(jsonStr), &dialogRes); err != nil {
+			log.Printf("[ERROR] Failed to decode json dialog from slack: %s", jsonStr)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		h.receiveDialog(w, message.OriginalMessage, dialogRes, message.TriggerID)
+		return
+	}
+	fmt.Printf("Actions found")
 
 	// Only accept message from slack with valid token
 	if message.Token != h.verificationToken {
@@ -109,11 +126,74 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		title := fmt.Sprintf(":x: @%s dialog is opening", message.User.Name)
 		h.responseDialog(w, message.OriginalMessage, title, "", message.TriggerID)
 		return
+	case actionDialogCallback:
+
+		var dialogRes slack.DialogCallback
+		if err := json.Unmarshal([]byte(jsonStr), &dialogRes); err != nil {
+			log.Printf("[ERROR] Failed to decode json dialog from slack: %s", jsonStr)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		h.receiveDialog(w, message.OriginalMessage, dialogRes, message.TriggerID)
+
+		return
+
 	default:
 		log.Printf("[ERROR] ]Invalid action was submitted: %s", action.Name)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h interactionHandler) receiveDialog(
+	w http.ResponseWriter,
+	original slack.Message,
+	dialog slack.DialogCallback,
+	triggerID string) {
+
+	fmt.Printf("d: %+v", dialog)
+
+	/*
+		attachment := slack.Attachment{
+			Text:       fmt.Sprintf(":x: @%s dialog is opening", dialog.Submission["test"]),
+			Color:      "#f9a41b",
+			CallbackID: "echo",
+			Actions: []slack.AttachmentAction{
+				{
+					Name:  actionCancel,
+					Text:  "Correct?",
+					Type:  "button",
+					Style: "danger",
+				},
+			},
+		}
+
+		params := slack.PostMessageParameters{
+			Attachments: []slack.Attachment{
+				attachment,
+			},
+		}
+	*/
+	params := slack.PostMessageParameters{}
+
+	if _, err := h.postEphemeral(
+		dialog.Channel.ID,
+		dialog.User.ID,
+		fmt.Sprintf("you said %s", dialog.Submission["test"]),
+		params); err != nil {
+		fmt.Errorf("failed to post message: %s", err)
+	}
+}
+
+func (h interactionHandler) postEphemeral(channel, user, text string, params slack.PostMessageParameters) (string, error) {
+	return h.slackClient.PostEphemeral(
+		channel,
+		user,
+		slack.MsgOptionText(text, params.EscapeText),
+		slack.MsgOptionAttachments(params.Attachments...),
+		slack.MsgOptionPostMessageParameters(params),
+	)
 }
 
 func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack.Message, title, value string, triggerID string) {
@@ -126,7 +206,7 @@ func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack
 		Elements: []slack.DialogElement{
 			slack.DialogTextElement{
 				Label: "hello",
-				Name:  "test name",
+				Name:  "test",
 				Type:  "text",
 			},
 		},
