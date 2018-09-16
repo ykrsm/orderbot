@@ -154,12 +154,70 @@ func (h interactionHandler) receiveDialog(
 
 	fmt.Printf("d: %+v", dialog)
 
-	params := slack.PostMessageParameters{}
+	var (
+		itemName   = dialog.Submission["item_name"]
+		itemUrl    = dialog.Submission["item_url"]
+		itemReason = dialog.Submission["item_reason"]
+		itemCount  = dialog.Submission["item_count"]
+	)
+
+	attachment := slack.Attachment{
+		Text:       "Did I get your order right?",
+		Color:      "36a64f",
+		CallbackID: "order_conf",
+		Fields: []slack.AttachmentField{
+			slack.AttachmentField{
+				Title: "Item name",
+				Value: itemName,
+				Short: false,
+			},
+			slack.AttachmentField{
+				Title: "Reason",
+				Value: itemReason,
+				Short: false,
+			},
+			slack.AttachmentField{
+				Title: "URL",
+				Value: itemUrl,
+				Short: false,
+			},
+			slack.AttachmentField{
+				Title: "How many",
+				Value: itemCount,
+				Short: false,
+			},
+		},
+		Actions: []slack.AttachmentAction{
+			slack.AttachmentAction{
+				Name:  "confirmed",
+				Text:  "Confirm",
+				Type:  "button",
+				Style: "primary",
+			},
+			slack.AttachmentAction{
+				Name: "addmore",
+				Text: "Add more items",
+				Type: "button",
+			},
+			slack.AttachmentAction{
+				Name:  "cancel_order",
+				Text:  "Cancel",
+				Type:  "button",
+				Style: "danger",
+			},
+		},
+	}
+
+	params := slack.PostMessageParameters{
+		Attachments: []slack.Attachment{
+			attachment,
+		},
+	}
 
 	if _, err := h.postEphemeral(
 		dialog.Channel.ID,
 		dialog.User.ID,
-		fmt.Sprintf("you said %s", dialog.Submission["test"]),
+		"",
 		params); err != nil {
 		fmt.Errorf("failed to post message: %s", err)
 	}
@@ -191,8 +249,15 @@ func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack
 				Hint:        "Type the name of item you are ordering",
 			},
 			slack.DialogTextElement{
+				Label:       "Reason of order",
+				Name:        "item_reason",
+				Type:        "text",
+				Placeholder: "e.g. Because I need a keyboard to work.",
+				Hint:        "This will help your boss to know why you need this",
+			},
+			slack.DialogTextElement{
 				Label:       "URL",
-				Name:        "url",
+				Name:        "item_url",
 				Type:        "text",
 				Subtype:     "url",
 				Placeholder: "e.g. http://a.co/d/...",
