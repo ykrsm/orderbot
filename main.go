@@ -33,6 +33,7 @@ func _main(args []string) int {
 	// responses from slack (kicked by user action)
 	http.Handle("/interaction", interactionHandler{
 		verificationToken: os.Getenv("VERIFICATION_TOKEN"),
+		slackClient:       client,
 	})
 
 	const port = "3000"
