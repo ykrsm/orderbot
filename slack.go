@@ -10,11 +10,10 @@ import (
 
 const (
 	// action is used for slack attament action.
-	actionSelect         = "select"
-	actionStart          = "start"
-	actionDialog         = "dialog"
-	actionDialogCallback = "dialogCB"
-	actionCancel         = "cancel"
+
+	actionStart  = "start"
+	orderStart   = "orderStart"
+	actionCancel = "cancel"
 )
 
 // SlackListener is
@@ -36,7 +35,7 @@ func (s *SlackListener) ListenAndResponse() {
 	for msg := range rtm.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		case *slack.MessageEvent:
-			if err := s.handleMessageEvent(ev, rtm); err != nil {
+			if err := s.handleMessageEvent(ev); err != nil {
 				log.Printf("[ERROR] Failed to handle message: %s", err)
 			}
 		}
@@ -44,7 +43,7 @@ func (s *SlackListener) ListenAndResponse() {
 }
 
 // handleMesageEvent handles message events.
-func (s *SlackListener) handleMessageEvent(ev *slack.MessageEvent, rtm *slack.RTM) error {
+func (s *SlackListener) handleMessageEvent(ev *slack.MessageEvent) error {
 	// Only response in specific channel. Ignore else.
 	if ev.Channel != s.channelID {
 		log.Printf("%s %s", ev.Channel, ev.Msg.Text)
@@ -58,44 +57,23 @@ func (s *SlackListener) handleMessageEvent(ev *slack.MessageEvent, rtm *slack.RT
 
 	// Parse message
 	m := strings.Split(strings.TrimSpace(ev.Msg.Text), " ")[1:]
-	if len(m) == 0 || m[0] != "hey" {
+	if len(m) == 0 || m[0] != "order" {
 		return fmt.Errorf("invalid message")
 	}
 	fmt.Printf("User: %s", ev.User)
+	fmt.Printf("event:\n %+v", ev)
 
 	// value is passed to message handler when request is approved.
 	attachment := slack.Attachment{
-		Text:       "Which beer do you want? :beer:",
+		Text:       "Want to order something?",
 		Color:      "#f9a41b",
-		CallbackID: "beer",
+		CallbackID: "order",
 		Actions: []slack.AttachmentAction{
 			{
-				Name: actionSelect,
-				Type: "select",
-				Options: []slack.AttachmentActionOption{
-					{
-						Text:  "Asahi Super Dry",
-						Value: "Asahi Super Dry",
-					},
-					{
-						Text:  "Kirin Lager Beer",
-						Value: "Kirin Lager Beer",
-					},
-					{
-						Text:  "Sapporo Black Label",
-						Value: "Sapporo Black Label",
-					},
-					{
-						Text:  "Suntory Malts",
-						Value: "Suntory Malts",
-					},
-					{
-						Text:  "Yona Yona Ale",
-						Value: "Yona Yona Ale",
-					},
-				},
+				Name: orderStart,
+				Text: "Yes!",
+				Type: "button",
 			},
-
 			{
 				Name:  actionCancel,
 				Text:  "Cancel",
@@ -115,6 +93,7 @@ func (s *SlackListener) handleMessageEvent(ev *slack.MessageEvent, rtm *slack.RT
 		return fmt.Errorf("failed to post message: %s", err)
 	}
 	return nil
+
 }
 
 func (s *SlackListener) postEphemeral(channel, user, text string, params slack.PostMessageParameters) (string, error) {
