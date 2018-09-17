@@ -7,9 +7,15 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/nlopes/slack"
+)
+
+const (
+	dialogConfirm  = "dialog_confirm"
+	dialogCancel   = "dialog_cancel"
+	dialogMore     = "dialog_more"
+	dialogCallback = "dialog_callback"
 )
 
 // interactionHandler handles interactive message response.
@@ -45,23 +51,6 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	// fmt.Printf("JSON: %+v", jsonStr)
-
-	//TODO better handling
-	if message.Actions == nil {
-		fmt.Printf("Actions not found")
-
-		var dialogRes slack.DialogCallback
-		if err := json.Unmarshal([]byte(jsonStr), &dialogRes); err != nil {
-			log.Printf("[ERROR] Failed to decode json dialog from slack: %s", jsonStr)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		h.receiveDialog(w, message.OriginalMessage, dialogRes, message.TriggerID)
-		return
-	}
-	fmt.Printf("Actions found")
 
 	// Only accept message from slack with valid token
 	if message.Token != h.verificationToken {
@@ -70,64 +59,25 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	action := message.Actions[0]
-	switch action.Name {
-	case actionSelect:
-		value := action.SelectedOptions[0].Value
+	var actionName string
+	if message.Actions == nil {
+		actionName = dialogCallback
+	} else {
+		action := message.Actions[0]
+		actionName = action.Name
+	}
 
-		// Overwrite original drop down message.
-		attachment := slack.Attachment{
-			Text:       fmt.Sprintf("OK to order %s ?", strings.Title(value)),
-			Color:      "#f9a41b",
-			CallbackID: "beer",
-			Actions: []slack.AttachmentAction{
-				{
-					Name:  actionStart,
-					Text:  "Yes",
-					Type:  "button",
-					Value: "start",
-					Style: "primary",
-				},
-				{
-					Name:  actionDialog,
-					Text:  "Open Dialog",
-					Type:  "button",
-					Style: "warning",
-				},
-				{
-					Name:  actionCancel,
-					Text:  "No",
-					Type:  "button",
-					Style: "danger",
-				},
-			},
-		}
+	switch actionName {
 
-		params := slack.PostMessageParameters{
-			Attachments: []slack.Attachment{
-				attachment,
-			},
-		}
+	case orderStart:
+		h.sendDialog(message.TriggerID)
 
-		w.Header().Add("Content-type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(&params)
-		return
-	case actionStart:
-		title := ":ok: Donezo"
-		responseMessage(w, message.OriginalMessage, title, "")
-		return
 	case actionCancel:
 		title := fmt.Sprintf(":x: @%s canceled the request", message.User.Name)
 		log.Printf("trigger_id: %s", message.TriggerID)
 		responseMessage(w, message.OriginalMessage, title, "")
-		return
-	case actionDialog:
-		title := fmt.Sprintf(":x: @%s dialog is opening", message.User.Name)
-		h.responseDialog(w, message.OriginalMessage, title, "", message.TriggerID)
-		return
-	case actionDialogCallback:
 
+	case dialogCallback:
 		var dialogRes slack.DialogCallback
 		if err := json.Unmarshal([]byte(jsonStr), &dialogRes); err != nil {
 			log.Printf("[ERROR] Failed to decode json dialog from slack: %s", jsonStr)
@@ -135,28 +85,39 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.receiveDialog(w, message.OriginalMessage, dialogRes, message.TriggerID)
+		h.respondToDialog(
+			dialogRes,
+			message.TriggerID)
 
-		return
+	case dialogCancel:
+		title := fmt.Sprintf(":x: @%s canceled the request", message.User.Name)
+		log.Printf("trigger_id: %s", message.TriggerID)
+		responseMessage(w, message.OriginalMessage, title, "")
+
+	case dialogConfirm:
+		title := fmt.Sprintf(":ok: Your order has been placed!")
+		responseMessage(w, message.OriginalMessage, title, "")
+
+	case dialogMore:
+		title := fmt.Sprintf(":ok: Let's add more!")
+		responseMessage(w, message.OriginalMessage, title, "")
 
 	default:
-		log.Printf("[ERROR] ]Invalid action was submitted: %s", action.Name)
+		log.Printf("[ERROR] ]Invalid action was submitted: %s", actionName)
 		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
+	return
 }
 
-func (h interactionHandler) receiveDialog(
-	w http.ResponseWriter,
-	original slack.Message,
+func (h interactionHandler) respondToDialog(
 	dialog slack.DialogCallback,
 	triggerID string) {
 
-	fmt.Printf("d: %+v", dialog)
+	// fmt.Printf("d: %+v", dialog)
 
 	var (
 		itemName   = dialog.Submission["item_name"]
-		itemUrl    = dialog.Submission["item_url"]
+		itemURL    = dialog.Submission["item_url"]
 		itemReason = dialog.Submission["item_reason"]
 		itemCount  = dialog.Submission["item_count"]
 	)
@@ -178,7 +139,7 @@ func (h interactionHandler) receiveDialog(
 			},
 			slack.AttachmentField{
 				Title: "URL",
-				Value: itemUrl,
+				Value: itemURL,
 				Short: false,
 			},
 			slack.AttachmentField{
@@ -189,18 +150,18 @@ func (h interactionHandler) receiveDialog(
 		},
 		Actions: []slack.AttachmentAction{
 			slack.AttachmentAction{
-				Name:  "confirmed",
+				Name:  dialogConfirm,
 				Text:  "Confirm",
 				Type:  "button",
 				Style: "primary",
 			},
 			slack.AttachmentAction{
-				Name: "addmore",
+				Name: dialogMore,
 				Text: "Add more items",
 				Type: "button",
 			},
 			slack.AttachmentAction{
-				Name:  "cancel_order",
+				Name:  dialogCancel,
 				Text:  "Cancel",
 				Type:  "button",
 				Style: "danger",
@@ -233,7 +194,8 @@ func (h interactionHandler) postEphemeral(channel, user, text string, params sla
 	)
 }
 
-func (h interactionHandler) responseDialog(w http.ResponseWriter, original slack.Message, title, value string, triggerID string) {
+func (h interactionHandler) sendDialog(
+	triggerID string) {
 
 	log.Printf("trigger_id: %s", triggerID)
 	dialog := slack.Dialog{
