@@ -9,13 +9,17 @@ import (
 	"net/url"
 
 	"github.com/nlopes/slack"
+	"github.com/ykrsm/orderbot/order"
 )
 
 const (
-	dialogConfirm  = "dialog_confirm"
-	dialogCancel   = "dialog_cancel"
-	dialogMore     = "dialog_more"
-	dialogCallback = "dialog_callback"
+	dialogConfirm         = "dialog_confirm"
+	dialogCancel          = "dialog_cancel"
+	dialogMore            = "dialog_more"
+	dialogCallback        = "dialog_callback"
+	orderApprovalPending  = "order_approval_pending"
+	orderApprovalApproved = "order_approval_approved"
+	orderApprovalRejected = "order_approval_rejected"
 )
 
 // interactionHandler handles interactive message response.
@@ -97,6 +101,7 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case dialogConfirm:
 		title := fmt.Sprintf(":ok: Your order has been placed!")
 		responseMessage(w, message.OriginalMessage, title, "")
+		order.MakeApprovalParameters()
 
 	case dialogMore:
 		title := fmt.Sprintf(":ok: Let's add more!")
