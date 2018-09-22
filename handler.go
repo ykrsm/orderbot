@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/nlopes/slack"
-	"github.com/ykrsm/orderbot/order"
 )
 
 const (
@@ -101,7 +100,7 @@ func (h interactionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case dialogConfirm:
 		title := fmt.Sprintf(":ok: Your order has been placed!")
 		responseMessage(w, message.OriginalMessage, title, "")
-		order.MakeApprovalParameters()
+		// order.MakeApprovalParameters()
 
 	case dialogMore:
 		title := fmt.Sprintf(":ok: Let's add more!")
