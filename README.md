@@ -8,6 +8,7 @@ and set it on slack interavtive
 
 # Compile for linux
 ```
+dep ensure
 env GOOS=linux GOARCH=386 go build -o main
 ```
 # Start docker
